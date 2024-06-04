@@ -1,3 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using DynamoDB;
 
-Console.WriteLine("Hello, World!");
+var client = SetupDatabase.InitializeClient();
+await client.CreateJobTableAsync();
