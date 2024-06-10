@@ -2,6 +2,7 @@ using System.Security.Authentication;
 using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using Common;
 
 namespace DynamoDB;
 
@@ -33,11 +34,129 @@ public static class SetupDatabase
 
         return true;
     }
+
+    public static async Task<bool> IsTableEmpty(this AmazonDynamoDBClient client, string tableName)
+    {
+        var response = await client.ScanAsync(new ScanRequest
+        {
+            TableName = tableName, 
+            Limit = 1
+        });
+        return response.Items.Count == 0;
+    }
+
+    /// <summary>
+    /// Wait until the table is in the desired status
+    /// </summary>
+    public static async Task WaitForStatusAsync(this AmazonDynamoDBClient client, string tableName, TableStatus status )
+    {
+        var request = new DescribeTableRequest { TableName = tableName };
+        await Functools.WaitForPredicateAsync(async () => 
+            (await client.DescribeTableAsync(request)).Table.TableStatus == status);
+    }
     
+    private static readonly CreateTableRequest TableSchema = new()
+    {
+        TableName = "JobStatus",
+        AttributeDefinitions =
+        [
+            new AttributeDefinition
+            {
+                AttributeName = "UserID",
+                AttributeType = ScalarAttributeType.S,
+            },
+            new AttributeDefinition
+            {
+                AttributeName = "JobCreationTimestamp",
+                AttributeType = ScalarAttributeType.N,
+            },
+            new AttributeDefinition
+            {
+                AttributeName = "JobStatus",
+                AttributeType = ScalarAttributeType.S,
+            },
+            /*
+            new AttributeDefinition
+            {
+                AttributeName = "ReportS3Bucket",
+                AttributeType = ScalarAttributeType.S,
+            },
+            new AttributeDefinition {
+                AttributeName = "ReportS3Key",
+                AttributeType = ScalarAttributeType.S,
+            },
+            new AttributeDefinition
+            {
+                AttributeName = "ReportCreationTimestamp",
+                AttributeType = ScalarAttributeType.N
+            },
+            // lazily represent this as a string for now, it could also just be several different attributes in the table
+            new AttributeDefinition
+            {
+                AttributeName = "FilterParameters",
+                AttributeType = ScalarAttributeType.S,
+            }
+            */
+        ],
+        KeySchema =
+        [
+            new KeySchemaElement
+            {
+                AttributeName = "UserID",
+                KeyType = KeyType.HASH,
+            },
+            new KeySchemaElement
+            {
+                AttributeName = "JobCreationTimestamp",
+                KeyType = KeyType.RANGE
+            }
+        ],
+        GlobalSecondaryIndexes =
+        [
+            // this is for processing jobs, we need the filtering info
+            // we can also query for expired jobs by querying for JobStatus == "Processed" and "JobCreationTimestamp" > 8 days ago
+            // in which case we need the S3 Info
+            new GlobalSecondaryIndex
+            {
+                IndexName = "JobStatusIndex",
+                KeySchema =
+                [
+                    new KeySchemaElement
+                    {
+                        AttributeName = "JobStatus",
+                        KeyType = KeyType.HASH
+                    },
+                    new KeySchemaElement
+                    {
+                        AttributeName = "JobCreationTimestamp",
+                        KeyType = KeyType.RANGE,
+                    }
+                ],
+                Projection = new Projection
+                {
+                    ProjectionType = ProjectionType.ALL
+                },
+                // Each GSI has its own provisioned throughput that it consumes
+                // Whenever a write occurs in the base table, it is replicated to the GSI, costing 1/2 a write unit
+                // Reads are similar
+                ProvisionedThroughput = new ProvisionedThroughput
+                {
+                    ReadCapacityUnits = 5,
+                    WriteCapacityUnits = 5,
+                }
+            }
+        ],
+        ProvisionedThroughput = new ProvisionedThroughput
+        {
+            ReadCapacityUnits = 5,
+            WriteCapacityUnits = 5,
+        },
+    };
+
     /// <summary>
     /// Creates a new Amazon DynamoDB table and then waits for the new
     /// table to become active.
-    ///
+    /// 
     /// Schema: User Id primary key, maps to list of Jobs:
     ///   - Job Creation Date Ticks: number
     ///   - Job Status: integer enum
@@ -46,65 +165,26 @@ public static class SetupDatabase
     /// GSI on Job Status for querying unused data
     /// </summary>
     /// <param name="client">An initialized Amazon DynamoDB client object.</param>
+    /// <param name="tableName"></param>
     /// <returns>A Boolean value indicating the success of the operation.</returns>
-    public static async Task CreateJobTableAsync(this AmazonDynamoDBClient client)
+    public static async Task CreateJobTableAsync(this AmazonDynamoDBClient client, string tableName = "JobStatus")
     {
-        if (await client.DoesTableExistAsync("JobStatus"))
+        if (await client.DoesTableExistAsync(tableName))
         {
-            Console.WriteLine("Not creating table as it already exists");
-            return;
-        }
-
-        var response = await client.CreateTableAsync(new CreateTableRequest
-        {
-            TableName = "JobStatus",
-            AttributeDefinitions =
-            [
-                new AttributeDefinition
-                {
-                    AttributeName = "UserID",
-                    AttributeType = ScalarAttributeType.S,
-                },
-            ],
-            KeySchema =
-            [
-                new KeySchemaElement
-                {
-                    AttributeName = "UserID",
-                    KeyType = KeyType.HASH,
-                },
-            ],
-            ProvisionedThroughput = new ProvisionedThroughput
+            if (!await client.IsTableEmpty(tableName))
             {
-                ReadCapacityUnits = 5,
-                WriteCapacityUnits = 5,
-            },
-        });
-
-        // Wait until the table is ACTIVE and then report success.
-        Console.WriteLine("Waiting for table to become active...");
-
-        var request = new DescribeTableRequest
-        {
-            TableName = response.TableDescription.TableName,
-        };
-
-        TableStatus status;
-
-        int sleepDuration = 2000;
-
-        do
-        {
-            Thread.Sleep(sleepDuration);
-
-            var describeTableResponse = await client.DescribeTableAsync(request);
-            status = describeTableResponse.Table.TableStatus;
-            var attrSchema = describeTableResponse.Table.AttributeDefinitions
-                .Select(attr => $"{attr.AttributeName}: {attr.AttributeType}");
-            Console.WriteLine($"Attribute: {string.Join('\n', attrSchema)}");
+                Console.WriteLine("Not creating table as it already exists and has data");
+                return;
+            }
+            
+            Console.WriteLine("Deleting Empty Table");
+            await client.DeleteTableAsync(tableName);
+            await Functools.WaitForPredicateAsync(async () => !await client.DoesTableExistAsync(tableName));
         }
-        while (status != "ACTIVE");
 
-        Console.WriteLine($"Finished creating table, status: {status}");
+        await client.CreateTableAsync(TableSchema);
+        Console.WriteLine("Waiting for table to become active...");
+        await client.WaitForStatusAsync(tableName, TableStatus.ACTIVE);
+        Console.WriteLine("Table Created!");
     }
 }
