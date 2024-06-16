@@ -62,7 +62,7 @@ public static class SetupDatabase
         [
             new AttributeDefinition
             {
-                AttributeName = "UserID",
+                AttributeName = "UserId",
                 AttributeType = ScalarAttributeType.S,
             },
             new AttributeDefinition
@@ -74,35 +74,13 @@ public static class SetupDatabase
             {
                 AttributeName = "JobStatus",
                 AttributeType = ScalarAttributeType.S,
-            },
-            /*
-            new AttributeDefinition
-            {
-                AttributeName = "ReportS3Bucket",
-                AttributeType = ScalarAttributeType.S,
-            },
-            new AttributeDefinition {
-                AttributeName = "ReportS3Key",
-                AttributeType = ScalarAttributeType.S,
-            },
-            new AttributeDefinition
-            {
-                AttributeName = "ReportCreationTimestamp",
-                AttributeType = ScalarAttributeType.N
-            },
-            // lazily represent this as a string for now, it could also just be several different attributes in the table
-            new AttributeDefinition
-            {
-                AttributeName = "FilterParameters",
-                AttributeType = ScalarAttributeType.S,
             }
-            */
         ],
         KeySchema =
         [
             new KeySchemaElement
             {
-                AttributeName = "UserID",
+                AttributeName = "UserId",
                 KeyType = KeyType.HASH,
             },
             new KeySchemaElement
@@ -167,7 +145,7 @@ public static class SetupDatabase
     /// <param name="client">An initialized Amazon DynamoDB client object.</param>
     /// <param name="tableName"></param>
     /// <returns>A Boolean value indicating the success of the operation.</returns>
-    public static async Task CreateJobTableAsync(this AmazonDynamoDBClient client, string tableName = "JobStatus")
+    public static async Task CreateJobTableAsync(this AmazonDynamoDBClient client, string tableName)
     {
         if (await client.DoesTableExistAsync(tableName))
         {
@@ -178,13 +156,25 @@ public static class SetupDatabase
             }
             
             Console.WriteLine("Deleting Empty Table");
-            await client.DeleteTableAsync(tableName);
-            await Functools.WaitForPredicateAsync(async () => !await client.DoesTableExistAsync(tableName));
+            await client.DeleteTableAndWaitAsync(tableName);
         }
 
         await client.CreateTableAsync(TableSchema);
         Console.WriteLine("Waiting for table to become active...");
         await client.WaitForStatusAsync(tableName, TableStatus.ACTIVE);
         Console.WriteLine("Table Created!");
+    }
+
+    public static async Task DeleteTableAndWaitAsync(this AmazonDynamoDBClient client, string tableName)
+    {
+        try
+        {
+            await client.DeleteTableAsync(tableName);
+        }
+        catch (ResourceNotFoundException)
+        {
+            return;
+        }
+        await Functools.WaitForPredicateAsync(async () => !await client.DoesTableExistAsync(tableName));
     }
 }
