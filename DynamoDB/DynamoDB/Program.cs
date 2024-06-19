@@ -13,3 +13,16 @@ foreach (var item in await client.ScanAsync(tableName))
 {
     Console.WriteLine(item);
 }
+
+Console.WriteLine("Querying Table for FirstUser's jobs after 2024/06/04");
+foreach (var item in await client.QueryJobsAsync(tableName, "FirstUser"))
+{
+    Console.WriteLine(item);
+}
+
+Console.WriteLine("Querying Table for unprocessed jobs");
+await Task.Delay(TimeSpan.FromSeconds(10)); // wait for written records to sync with the GSI
+foreach (var item in await client.QueryJobsAsync(tableName, JobStatus.Unprocessed))
+{
+    Console.WriteLine(item);
+}
