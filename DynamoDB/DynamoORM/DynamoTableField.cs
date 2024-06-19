@@ -9,24 +9,22 @@ namespace DynamoORM;
 /// <typeparam name="T">The entity model type</typeparam>
 public class DynamoTableField<T>
 {
-    private readonly string _propertyName;
     private readonly Type _entityType;
     private readonly PropertyInfo _propertyInfo;
     public readonly DynamoDataType DynamoType;
 
     public DynamoTableField(string propertyName)
     {
-        _propertyName = propertyName;
         _entityType = typeof(T);
         
         _propertyInfo = _entityType.GetProperty(propertyName) 
                         ?? throw new EntityModelException($"Property: {propertyName} not found on entityType: {_entityType}");
-        if (!_propertyInfo.CanRead)
+        if (!_propertyInfo.CanRead || _propertyInfo.GetMethod is null)
         {
             throw new EntityModelException($"Property: {propertyName} is not readable");
         }
 
-        if (!_propertyInfo.CanWrite)
+        if (!_propertyInfo.CanWrite || _propertyInfo.SetMethod is null)
         {
             throw new EntityModelException($"Property: {propertyName} is not writeable");
         }
@@ -41,7 +39,9 @@ public class DynamoTableField<T>
     /// <returns></returns>
     public AttributeValue GetFieldValue(T entityModel)
     {
-        return null;
+        var propertyValue = _propertyInfo.GetMethod!.Invoke(entityModel, null)
+            ?? throw new EntityModelException($"Failed to invoke the Getter for {this}");
+        return _propertyInfo.PropertyType.ToAttributeValue(propertyValue);
     }
     
     /// <summary>
@@ -51,8 +51,9 @@ public class DynamoTableField<T>
     /// <param name="entityModel"></param>
     public void SetFieldValue(AttributeValue attributeValue, T entityModel)
     {
-        
+        var value = _propertyInfo.PropertyType.ExtractAttributeValue(attributeValue);
+        _propertyInfo.SetMethod!.Invoke(entityModel, [value]);
     }
-    
-    // todo: handle indexes later, maybe those can be handled at the table level?
+
+    public override string ToString() => $"{_entityType}.{_propertyInfo.Name}";
 }

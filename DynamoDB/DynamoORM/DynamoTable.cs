@@ -1,3 +1,4 @@
+using System.Linq;
 namespace DynamoORM;
 
 /// <summary>
@@ -10,11 +11,15 @@ public class DynamoTable<T>
 
     public DynamoTable()
     {
-        // initialise fields using reflection on the type
-        _fields = null;
+        var entityType = typeof(T);
+        _fields = entityType.GetProperties()
+            .Select(prop =>
+                new KeyValuePair<string, DynamoTableField<T>>(prop.Name, new DynamoTableField<T>(prop.Name)))
+            .ToDictionary();
     }
 
     // Function to initialise table in dynamo db, takes in limits and other appropriate parameters
+    // This function needs to handle the indexes, might also need to store them in this class as well
 
     // Function to a record
 

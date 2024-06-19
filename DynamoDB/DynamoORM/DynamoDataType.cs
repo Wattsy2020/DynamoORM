@@ -35,6 +35,9 @@ public static class DynamoDataTypeExtensions
         // todo: use typeof(Enum) to handle enums (convert them to a string)
     };
 
+    public static AttributeValue ToAttributeValue(this Type type, object value)
+        => SerialisationFunctions[type](value);
+
     private static int ParseInt(AttributeValue value)
         => int.TryParse(value.N ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.Number), out var parsedInt)
             ? parsedInt
@@ -65,4 +68,7 @@ public static class DynamoDataTypeExtensions
         { typeof(DateTime), value => ParseDateTime(value) },
         // todo: use typeof(Enum) to handle enums (read from a string)
     };
+
+    public static object ExtractAttributeValue(this Type type, AttributeValue value)
+        => DeserializationFunctions[type](value);
 }
