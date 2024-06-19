@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamoDB", "DynamoDB\Dynamo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{A63712B1-2933-403A-9841-1BB0ABF67ACE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamoORM", "DynamoORM\DynamoORM.csproj", "{52E8EFB2-6E63-4375-A9EA-336A21201F76}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{A63712B1-2933-403A-9841-1BB0ABF67ACE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A63712B1-2933-403A-9841-1BB0ABF67ACE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A63712B1-2933-403A-9841-1BB0ABF67ACE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{52E8EFB2-6E63-4375-A9EA-336A21201F76}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52E8EFB2-6E63-4375-A9EA-336A21201F76}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52E8EFB2-6E63-4375-A9EA-336A21201F76}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52E8EFB2-6E63-4375-A9EA-336A21201F76}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
