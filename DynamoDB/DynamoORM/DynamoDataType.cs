@@ -15,14 +15,14 @@ public static class DynamoDataTypeExtensions
     {
         { typeof(string), DynamoDataType.String },
         { typeof(char), DynamoDataType.String },
-        { typeof(Enum), DynamoDataType.String },
         { typeof(int), DynamoDataType.Number },
         { typeof(short), DynamoDataType.Number },
         { typeof(long), DynamoDataType.Number },
         { typeof(DateTime), DynamoDataType.Number },
     };
 
-    public static DynamoDataType GetDynamoType(this Type type) => TypeMap[type];
+    public static DynamoDataType GetDynamoType(this Type type) 
+        => type.IsEnum ? DynamoDataType.String : TypeMap[type];
 
     private static readonly Dictionary<Type, Func<object, AttributeValue>> SerialisationFunctions = new()
     {
@@ -32,7 +32,6 @@ public static class DynamoDataTypeExtensions
         { typeof(short), obj => new AttributeValue { N = ((short)obj).ToString() } },
         { typeof(long), obj => new AttributeValue { N = ((long)obj).ToString() } },
         { typeof(DateTime), obj => new AttributeValue { N = ((DateTime)obj).Ticks.ToString() } },
-        // todo: use typeof(Enum) to handle enums (convert them to a string)
     };
 
     public static AttributeValue ToAttributeValue(this Type type, object value)
@@ -72,7 +71,6 @@ public static class DynamoDataTypeExtensions
         { typeof(short), value => ParseShort(value) },
         { typeof(long), value => ParseLong(value) },
         { typeof(DateTime), value => ParseDateTime(value) },
-        // todo: use typeof(Enum) to handle enums (read from a string)
     };
 
     public static object ExtractAttributeValue(this Type type, AttributeValue value)

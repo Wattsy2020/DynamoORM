@@ -11,6 +11,7 @@ public class DynamoTableFieldTests
     private readonly DynamoTableField<TestEntity> _shortField = new (nameof(TestEntity.TestShort));
     private readonly DynamoTableField<TestEntity> _longField = new (nameof(TestEntity.TestLong));
     private readonly DynamoTableField<TestEntity> _dateTimeField = new (nameof(TestEntity.TestDateTime));
+    private readonly DynamoTableField<TestEntity> _enumField = new(nameof(TestEntity.TestEnum));
 
     [Fact]
     public void TestEntityFieldsHaveCorrectDynamoDataType()
@@ -21,6 +22,7 @@ public class DynamoTableFieldTests
         _shortField.DynamoType.Should().Be(DynamoDataType.Number);
         _longField.DynamoType.Should().Be(DynamoDataType.Number);
         _dateTimeField.DynamoType.Should().Be(DynamoDataType.Number);
+        _enumField.DynamoType.Should().Be(DynamoDataType.String);
     }
 
     [Fact]
@@ -33,7 +35,8 @@ public class DynamoTableFieldTests
             TestInt = 0,
             TestShort = 1,
             TestLong = 2,
-            TestDateTime = new DateTime(2024, 1, 1)
+            TestDateTime = new DateTime(2024, 1, 1),
+            TestEnum = TestEnum.EnumValue2
         };
 
         _stringField.GetFieldValue(exampleEntity)
@@ -48,6 +51,8 @@ public class DynamoTableFieldTests
             .Should().BeAttributeValue(new AttributeValue { N = "2" });
         _dateTimeField.GetFieldValue(exampleEntity)
             .Should().BeAttributeValue(new AttributeValue { N = "638396640000000000" });
+        _enumField.GetFieldValue(exampleEntity)
+            .Should().BeAttributeValue(new AttributeValue { S = "EnumValue2" });
     }
     
     [Fact]
@@ -72,6 +77,9 @@ public class DynamoTableFieldTests
         
         _dateTimeField.SetFieldValue(new AttributeValue { N = "638396640000000000" }, exampleEntity);
         exampleEntity.TestDateTime.Should().Be(new DateTime(2024, 01, 01));
+        
+        _enumField.SetFieldValue(new AttributeValue { S = "EnumValue3" }, exampleEntity);
+        exampleEntity.TestEnum.Should().Be(TestEnum.EnumValue3);
     }
     
     private class TestEntity
@@ -82,5 +90,13 @@ public class DynamoTableFieldTests
         public short TestShort { get; set; }
         public long TestLong { get; set; }
         public DateTime TestDateTime { get; set; }
+        public TestEnum TestEnum { get; set; }
+    }
+
+    private enum TestEnum
+    {
+        EnumValue1,
+        EnumValue2,
+        EnumValue3
     }
 }
