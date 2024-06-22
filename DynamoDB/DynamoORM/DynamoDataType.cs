@@ -38,6 +38,14 @@ public static class DynamoDataTypeExtensions
     public static AttributeValue ToAttributeValue(this Type type, object value)
         => SerialisationFunctions[type](value);
 
+    private static string ParseString(AttributeValue value)
+        => value.S ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.String);
+
+    private static char ParseChar(AttributeValue value)
+        => char.TryParse(ParseString(value), out var charResult)
+            ? charResult
+            : throw new DynamoSchemaException("Expected String Attribute to be convertable to char");
+    
     private static int ParseInt(AttributeValue value)
         => int.TryParse(value.N ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.Number), out var parsedInt)
             ? parsedInt
@@ -58,10 +66,8 @@ public static class DynamoDataTypeExtensions
 
     private static readonly Dictionary<Type, Func<AttributeValue, object>> DeserializationFunctions = new()
     {
-        {
-            typeof(string), value => value.S ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.String)
-        },
-        { typeof(char), value => value.S ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.String) },
+        { typeof(string), value => ParseString(value) },
+        { typeof(char), value => ParseChar(value) },
         { typeof(int), value => ParseInt(value) },
         { typeof(short), value => ParseShort(value) },
         { typeof(long), value => ParseLong(value) },
