@@ -1,3 +1,4 @@
+using System.Globalization;
 using Amazon.DynamoDBv2.Model;
 
 namespace DynamoORM;
@@ -18,6 +19,9 @@ public static class DynamoDataTypeExtensions
         { typeof(int), DynamoDataType.Number },
         { typeof(short), DynamoDataType.Number },
         { typeof(long), DynamoDataType.Number },
+        { typeof(float), DynamoDataType.Number },
+        { typeof(double), DynamoDataType.Number },
+        { typeof(decimal), DynamoDataType.Number },
         { typeof(DateTime), DynamoDataType.Number },
     };
 
@@ -31,6 +35,9 @@ public static class DynamoDataTypeExtensions
         { typeof(int), obj => new AttributeValue { N = ((int)obj).ToString() } },
         { typeof(short), obj => new AttributeValue { N = ((short)obj).ToString() } },
         { typeof(long), obj => new AttributeValue { N = ((long)obj).ToString() } },
+        { typeof(float), obj => new AttributeValue { N = ((float)obj).ToString(CultureInfo.InvariantCulture) }},
+        { typeof(double), obj => new AttributeValue { N = ((double)obj).ToString(CultureInfo.InvariantCulture) }},
+        { typeof(decimal), obj => new AttributeValue { N = ((decimal)obj).ToString(CultureInfo.InvariantCulture) }},
         { typeof(DateTime), obj => new AttributeValue { N = ((DateTime)obj).Ticks.ToString() } },
     };
 
@@ -60,6 +67,21 @@ public static class DynamoDataTypeExtensions
             ? parsedLong
             : throw new DynamoSchemaException("Expected Numeric Attribute to be convertable to long");
 
+    private static float ParseFloat(AttributeValue value)
+        => float.TryParse(value.N ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.Number), out var parsedFloat)
+            ? parsedFloat
+            : throw new DynamoSchemaException("Expected Numeric Attribute to be convertable to float");
+    
+    private static double ParseDouble(AttributeValue value)
+        => double.TryParse(value.N ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.Number), out var parsedDouble)
+            ? parsedDouble
+            : throw new DynamoSchemaException("Expected Numeric Attribute to be convertable to double");
+    
+    private static decimal ParseDecimal(AttributeValue value)
+        => decimal.TryParse(value.N ?? throw DynamoSchemaException.ExpectedTypeException(DynamoDataType.Number), out var parsedDecimal)
+            ? parsedDecimal
+            : throw new DynamoSchemaException("Expected Numeric Attribute to be convertable to decimal");
+    
     private static DateTime ParseDateTime(AttributeValue value)
         => new (ticks: ParseLong(value));
 
@@ -70,6 +92,9 @@ public static class DynamoDataTypeExtensions
         { typeof(int), value => ParseInt(value) },
         { typeof(short), value => ParseShort(value) },
         { typeof(long), value => ParseLong(value) },
+        { typeof(float), value => ParseFloat(value) },
+        { typeof(double), value => ParseDouble(value) },
+        { typeof(decimal), value => ParseDecimal(value) },
         { typeof(DateTime), value => ParseDateTime(value) },
     };
 
